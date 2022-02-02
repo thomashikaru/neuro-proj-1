@@ -42,6 +42,10 @@ class LCA:
         self.x_2 = max(0, self.x_2 + delta_x_2)
 
     def simulate(self, I_1_vals, I_2_vals):
+        self.x_1 = 0
+        self.x_2 = 0
+        self.x_1_history = []
+        self.x_2_history = []
         for I_1, I_2 in zip(I_1_vals, I_2_vals):
             self.step(I_1, I_2)
         diff = self.x_1 - self.x_2
@@ -89,14 +93,22 @@ class BD:
         self.x_2 = max(0, self.x_2 + delta_x_2)
 
     def simulate(self, I_1_vals, I_2_vals):
+        self.x_1 = 0
+        self.x_2 = 0
+        self.x_1_history = []
+        self.x_2_history = []
+
         for I_1, I_2 in zip(I_1_vals, I_2_vals):
             self.step(I_1, I_2)
             diff = self.x_1 - self.x_2
             if diff > self.A:
+                # print(self.x_1, self.x_2)
                 return 1
             elif diff < -self.A:
+                # print(self.x_1, self.x_2)
                 return 2
         diff = self.x_1 - self.x_2
+        # print(self.x_1, self.x_2)
         return 1 if diff > 0 else 2
 
     def plot(self):
@@ -140,16 +152,16 @@ if __name__ == "__main__":
 
     sns.set_style("dark")
 
-    m1 = LCA(I_0=0.2, k=0.5, beta=0.5, sigma=0.1)
-    m2 = BD(sigma=0.1, A=10)
+    m1 = LCA(I_0=0.2, k=0.1, beta=0.01, sigma=0.1)
+    m2 = BD(sigma=0.1, A=1)
 
-    I_1_vals, I_2_vals = data_generators.late_pulse()
+    # I_1_vals, I_2_vals = data_generators.late_pulse()
 
-    m1.simulate(I_1_vals, I_2_vals)
-    m1.plot()
+    # m1.simulate(I_1_vals, I_2_vals)
+    # m1.plot()
 
-    m2.simulate(I_1_vals, I_2_vals)
-    m2.plot()
+    # m2.simulate(I_1_vals, I_2_vals)
+    # m2.plot()
 
-    run_experiment(m1, 100, data_generators.late_pulse)
-    run_experiment(m2, 100, data_generators.late_pulse)
+    run_experiment(m1, 1000, data_generators.early_pulse)
+    run_experiment(m2, 1000, data_generators.early_pulse)
