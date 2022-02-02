@@ -3,6 +3,7 @@ import random
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
+import data_generators
 
 
 class LCA:
@@ -43,8 +44,11 @@ class LCA:
     def simulate(self, I_1_vals, I_2_vals):
         for I_1, I_2 in zip(I_1_vals, I_2_vals):
             self.step(I_1, I_2)
+        diff = self.x_1 - self.x_2
+        return 1 if diff > 0 else 2
 
     def plot(self):
+        plt.clf()
         df1 = pd.DataFrame(
             {
                 "t": list(range(len(self.x_1_history))),
@@ -59,16 +63,9 @@ class LCA:
                 "name": "x2",
             }
         )
-        df3 = pd.DataFrame(
-            {
-                "t": list(range(len(self.x_2_history))),
-                "value": np.array(self.x_1_history) - np.array(self.x_2_history),
-                "name": "x1-x2",
-            }
-        )
-        df = pd.concat([df1, df2, df3])
+        df = pd.concat([df1, df2])
         p = sns.lineplot(data=df, x="t", y="value", hue="name")
-        plt.show()
+        plt.savefig("imgs/LCA_plot.png", dpi=300)
 
 
 class BD:
@@ -94,32 +91,49 @@ class BD:
     def simulate(self, I_1_vals, I_2_vals):
         for I_1, I_2 in zip(I_1_vals, I_2_vals):
             self.step(I_1, I_2)
+            diff = self.x_1 - self.x_2
+            if diff > self.A:
+                return 1
+            elif diff < -self.A:
+                return 2
+        diff = self.x_1 - self.x_2
+        return 1 if diff > 0 else 2
 
     def plot(self):
+        plt.clf()
+
         df1 = pd.DataFrame(
             {
-                "t": list(range(len(self.x_1_history))),
-                "value": self.x_1_history,
-                "name": "x1",
+                "t": list(range(len(self.x_2_history))),
+                "value": np.array(self.x_1_history) - np.array(self.x_2_history),
+                "name": "y1=x1-x2",
             }
         )
         df2 = pd.DataFrame(
             {
                 "t": list(range(len(self.x_2_history))),
-                "value": self.x_2_history,
-                "name": "x2",
+                "value": np.array(self.x_2_history) - np.array(self.x_1_history),
+                "name": "y2=x2-x1",
             }
         )
-        df3 = pd.DataFrame(
-            {
-                "t": list(range(len(self.x_2_history))),
-                "value": np.array(self.x_1_history) - np.array(self.x_2_history),
-                "name": "x1-x2",
-            }
-        )
-        df = pd.concat([df1, df2, df3])
+        df = pd.concat([df1, df2])
         p = sns.lineplot(data=df, x="t", y="value", hue="name")
-        plt.show()
+        plt.savefig("imgs/BD_plot.png", dpi=300)
+
+
+def run_experiment(model, num_trials, input_func):
+
+    decisions = []
+
+    for i in range(num_trials):
+        I_1_vals, I_2_vals = input_func()
+        d = model.simulate(I_1_vals, I_2_vals)
+        decisions.append(d)
+
+    decisions = np.array(decisions)
+    count_1 = sum(decisions == 1)
+    count_2 = sum(decisions == 2)
+    print(f"Count 1: {count_1}, Count 2: {count_2}")
 
 
 if __name__ == "__main__":
@@ -127,16 +141,15 @@ if __name__ == "__main__":
     sns.set_style("dark")
 
     m1 = LCA(I_0=0.2, k=0.5, beta=0.5, sigma=0.1)
+    m2 = BD(sigma=0.1, A=10)
 
-    # I_1_vals = np.linspace(0.8, 0.2, 100)
-    # I_2_vals = np.linspace(0.2, 0.8, 100)
-    I_1_vals = np.full((100), 0.5)
-    I_2_vals = np.full((100), 0.5)
-    I_1_vals[70:80] = 0.8
+    I_1_vals, I_2_vals = data_generators.late_pulse()
 
     m1.simulate(I_1_vals, I_2_vals)
     m1.plot()
 
-    m2 = BD(sigma=0.1, A=0.5)
     m2.simulate(I_1_vals, I_2_vals)
     m2.plot()
+
+    run_experiment(m1, 100, data_generators.late_pulse)
+    run_experiment(m2, 100, data_generators.late_pulse)
