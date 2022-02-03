@@ -3,6 +3,7 @@ import random
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
+from transformers import data
 import data_generators
 
 
@@ -102,13 +103,10 @@ class BD:
             self.step(I_1, I_2)
             diff = self.x_1 - self.x_2
             if diff > self.A:
-                # print(self.x_1, self.x_2)
                 return 1
             elif diff < -self.A:
-                # print(self.x_1, self.x_2)
                 return 2
         diff = self.x_1 - self.x_2
-        # print(self.x_1, self.x_2)
         return 1 if diff > 0 else 2
 
     def plot(self):
@@ -148,12 +146,43 @@ def run_experiment(model, num_trials, input_func):
     print(f"Count 1: {count_1}, Count 2: {count_2}")
 
 
+def run_experiment_2(model, num_trials, imgname):
+    """Run experiment comparing pulse location to percent of 
+    decisions favoring 1 ("Left")
+
+    Args:
+        model (object): decision model to run
+        num_trials (int): number of trials to run per pulse location
+        imgname (str): path to output plot file
+    """
+
+    pcts = []
+
+    for start, end in zip(range(0, 90), range(10, 100)):
+
+        decisions = []
+        for i in range(num_trials):
+            I_1_vals, I_2_vals = data_generators.pulse(start, end)
+            d = model.simulate(I_1_vals, I_2_vals)
+            decisions.append(d)
+        decisions = np.array(decisions)
+        count_1 = sum(decisions == 1)
+        pcts.append(count_1 / num_trials)
+
+    plt.clf()
+    p = sns.scatterplot(x=range(len(pcts)), y=pcts)
+    p.set_xlabel("Left Pulse Start Location", fontsize=18)
+    p.set_ylabel("Percent of Left Decisions", fontsize=18)
+    plt.savefig(imgname, dpi=300)
+
+
 if __name__ == "__main__":
 
     sns.set_style("dark")
 
     m1 = LCA(I_0=0.2, k=0.1, beta=0.01, sigma=0.1)
     m2 = BD(sigma=0.1, A=1)
+    m3 = LCA(I_0=0.2, k=0.01, beta=0.1, sigma=0.1)
 
     # I_1_vals, I_2_vals = data_generators.late_pulse()
 
@@ -163,5 +192,9 @@ if __name__ == "__main__":
     # m2.simulate(I_1_vals, I_2_vals)
     # m2.plot()
 
-    run_experiment(m1, 1000, data_generators.early_pulse)
-    run_experiment(m2, 1000, data_generators.early_pulse)
+    # run_experiment(m1, 1000, data_generators.early_pulse)
+    # run_experiment(m2, 1000, data_generators.early_pulse)
+
+    run_experiment_2(m1, 500, "imgs/LCA_by_pulse_high_leak.png")
+    run_experiment_2(m2, 500, "imgs/BD_by_pulse.png")
+    run_experiment_2(m3, 500, "imgs/LCA_by_pulse_high_inhibition")
