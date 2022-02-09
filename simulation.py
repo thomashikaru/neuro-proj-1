@@ -1,10 +1,9 @@
-import numpy as np
-import random
+import numpy as np 
 import matplotlib.pyplot as plt
 import seaborn as sns
-import pandas as pd
-from transformers import data
+import pandas as pd 
 import data_generators
+from itertools import product
 
 
 class LCA:
@@ -146,6 +145,86 @@ def run_experiment(model, num_trials, input_func):
     print(f"Count 1: {count_1}, Count 2: {count_2}")
 
 
+def run_experiment_3(imgname):
+    """Compute reward rate for the LCA models with different inhibition and 
+    leak parameter values. How do the optimal parameters change for early versus
+    late pulses?        
+
+    Args:
+        imgname (str): path to output plot file
+    """
+    # leak parameters
+    ks = np.linspace(0.01, 0.11, 11)
+
+    # inhibition parameters
+    betas = np.linspace(0.01, 0.11, 11)
+
+    num_trials = 100
+
+    # early pulses
+    early_start = 10
+    early_end = 20
+
+    # late pulses
+    late_start = 80
+    late_end = 90
+
+    early_reward_rates = []
+    late_reward_rates = []
+
+    for beta, k in list(product(betas, ks)):
+        model = LCA(I_0=0.2, k=k, beta=beta, sigma=0.1)
+        early_rewards = []
+        late_rewards = []
+        for _ in range(int(num_trials/2)):
+            for label in [1, 2]:
+                I_1_vals, I_2_vals = data_generators.labeled_pulse(
+                    early_start, early_end, label)
+                d = model.simulate(I_1_vals, I_2_vals)
+                early_rewards.append(d == label)
+
+                I_1_vals, I_2_vals = data_generators.labeled_pulse(
+                    late_start, late_end, label)
+                d = model.simulate(I_1_vals, I_2_vals)
+                late_rewards.append(d == label)
+
+        early_reward_rates.append(sum(early_rewards)/num_trials)
+        late_reward_rates.append(sum(late_rewards)/num_trials)
+
+    params = np.round(np.stack(list(product(betas, ks))), 2)
+    betas = params[:, 0]
+    ks = params[:, 1]
+    df = pd.DataFrame({'early_reward': early_reward_rates,
+                      'late_reward': late_reward_rates, 'beta': betas, 'k': ks})
+
+    plt.clf()
+
+    early_df = df.pivot('beta', 'k', 'early_reward')
+    ax = plt.subplot(121)
+    p = sns.heatmap(early_df, vmin=0, vmax=1, cbar=False, ax=ax)
+    p.set_title('LCA reward rate - Early pulse')
+    p.set_xlabel('Leak')
+    p.set_ylabel('Inhibition')
+
+    late_df = df.pivot('beta', 'k', 'late_reward')
+    ax = plt.subplot(122)
+    p = sns.heatmap(late_df, vmin=0, vmax=1, cbar_kws={
+                    'label': 'reward rate'}, ax=ax)
+    p.set_title('LCA reward rate - Late pulse')
+    p.set_xlabel('Leak')
+    p.set_ylabel('')
+
+    plt.savefig(imgname, dpi=300)
+
+    e_opt = params[np.argmax(early_reward_rates), :]
+    l_opt = params[np.argmax(late_reward_rates), :]
+
+    print(
+        f'Optimal LCA params for early pulse: beta={e_opt[0]}, k={e_opt[1]}')
+    print(
+        f'Optimal LCA params for late pulse: beta={l_opt[0]}, k={l_opt[1]}')
+
+
 def run_experiment_2(model, num_trials, imgname):
     """Run experiment comparing pulse location to percent of 
     decisions favoring 1 ("Left")
@@ -195,6 +274,8 @@ if __name__ == "__main__":
     # run_experiment(m1, 1000, data_generators.early_pulse)
     # run_experiment(m2, 1000, data_generators.early_pulse)
 
-    run_experiment_2(m1, 500, "imgs/LCA_by_pulse_high_leak.png")
-    run_experiment_2(m2, 500, "imgs/BD_by_pulse.png")
-    run_experiment_2(m3, 500, "imgs/LCA_by_pulse_high_inhibition")
+    # run_experiment_2(m1, 500, "imgs/LCA_by_pulse_high_leak.png")
+    # run_experiment_2(m2, 500, "imgs/BD_by_pulse.png")
+    # run_experiment_2(m3, 500, "imgs/LCA_by_pulse_high_inhibition")
+
+    run_experiment_3('imgs/LCA_optimal')
